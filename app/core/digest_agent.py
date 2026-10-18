@@ -8,6 +8,7 @@ Safety design:
 """
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
@@ -15,7 +16,7 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel, ValidationError
 
 from app.config import settings
-from app.core import llm, tavily_search
+from app.core import llm, page_images, tavily_search
 
 log = logging.getLogger(__name__)
 
@@ -207,20 +208,55 @@ Return JSON only:
             "image_url": image_url,
             "image_caption": (it.image_caption or it.title).strip() if image_url else None,
             "image_credit": _domain(image_url) if image_url else None,
+            "image_source": "search" if image_url else None,
         })
         if len(out) >= settings.digest_max_items:
             break
     return str(data.get("headline") or "").strip(), str(data.get("intro") or "").strip(), out
 
 
+# ---------------- step 3b: page images ----------------
+def _safe_find(url: str) -> dict | None:
+    try:
+        return page_images.find_page_image(url)
+    except Exception as e:                      # noqa: BLE001  (never fail a digest over an image)
+        log.warning("page image lookup failed for %s: %s", url, e)
+        return None
+
+
+def _enrich_with_page_images(items: list[dict]) -> None:
+    """Prefer the image from the opportunity's own page. Keep the search image as a fallback."""
+    if not settings.digest_fetch_page_images or not items:
+        return
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [(it, pool.submit(_safe_find, it["url"])) for it in items]
+        for it, fut in futures:
+            found = fut.result()
+            if not found:
+                continue
+            it["image_url"] = found["image_url"]
+            it["image_caption"] = found["alt"] or it["title"]
+            it["image_credit"] = it["domain"]
+            it["image_source"] = "page"
+
+
 # ---------------- step 4: render ----------------
+def _md_text(t: str) -> str:
+    return " ".join(str(t).replace("[", "(").replace("]", ")").split())
+
+
+def _md_url(u: str) -> str:
+    return u.replace(" ", "%20").replace("(", "%28").replace(")", "%29")
+
+
 def render_markdown(headline: str, intro: str, items: list[dict], week: str) -> str:
     lines = [f"# {headline}", "", f"*Week {week}*", "", intro, ""]
     for n, it in enumerate(items, 1):
         lines += [f"## {n}. {it['title']}", ""]
         if it["image_url"]:
-            lines += [f"![{it['image_caption']}]({it['image_url']})",
-                      f"*{it['image_caption']} (Image via {it['image_credit']})*", ""]
+            cap = _md_text(it["image_caption"] or it["title"])
+            lines += [f"![{cap}]({_md_url(it['image_url'])})",
+                      f"*{cap} (Image via {it['image_credit']})*", ""]
         lines += [it["summary"], "", f"**Why it fits you:** {it['why_relevant']}", ""]
         meta = []
         if it["event_date"]:
@@ -257,6 +293,8 @@ def build_digest(segment: dict, week: str | None = None, seen_urls: set[str] | N
         headline, intro, items = _curate(segment, pool, images)
         if len(items) >= MIN_ITEMS:
             break
+
+    _enrich_with_page_images(items)
 
     status = "ok" if items else "empty"
     if not headline:

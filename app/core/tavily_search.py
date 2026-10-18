@@ -17,6 +17,15 @@ def _client() -> TavilyClient:
 
 def search_web(query: str, max_results: int = 6) -> dict:
     """Returns {'results': [{url,title,content,score,...}], 'images': [{url,description}]}."""
+    if settings.mock_mode:
+        return {
+            "results": [{"url": f"https://example.org/opportunity-{i}",
+                         "title": f"Sample opportunity {i}",
+                         "content": "Sample description of a student opportunity.",
+                         "score": 1 - i / 10} for i in range(5)],
+            "images": [{"url": "https://placehold.co/600x300.jpg",
+                        "description": "Students collaborating at a hackathon"}],
+        }
     last: Exception | None = None
     for attempt in range(3):
         try:

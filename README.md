@@ -16,6 +16,21 @@ FastAPI (upload/search) -> Redis (queue + status) -> Celery worker
 3. `docker compose up --build`
 4. Open http://localhost:8000/docs, click **Authorize**, paste your `API_KEY`.
 
+## Streamlit API tester
+With the API running, install the optional UI dependencies and launch the
+interactive endpoint tester:
+
+```bash
+pip install -r requirements-ui.txt
+streamlit run streamlit_app.py
+```
+
+Open the Streamlit URL shown in the terminal (usually http://localhost:8501).
+Set the API base URL and `API_KEY` in the sidebar. The tester covers health,
+document upload/status/delete, semantic search, and all weekly digest routes.
+Digest runs are dry-run by default; publishing still sends to the configured
+webhook.
+
 ## Endpoints (header: `x-api-key`)
 - `POST /v1/documents`: form fields `file`, `department`, `cohort_id`
   (optional: `title`, `chunk_size`, `chunk_overlap`, `document_id`)

@@ -25,6 +25,18 @@ def _parse(text: str) -> dict:
 
 def generate_json(prompt: str, temperature: float = 0.3, max_retries: int = 6) -> dict:
     """Gemini call that must return a JSON object. Backs off on 429/5xx and retries bad JSON."""
+    if settings.mock_mode:
+        if prompt.startswith("TASK: PLAN_QUERIES"):
+            return {"queries": ["ml internships", "ai hackathon",
+                                "data science scholarships", "tech conference"]}
+        from datetime import date, timedelta
+        d = (date.today() + timedelta(days=30)).isoformat()
+        return {"headline": "Mock weekly digest", "intro": "Sample intro.", "items": [
+            {"source_id": i, "title": f"Sample opportunity {i}", "summary": "Sample summary.",
+             "why_relevant": "Matches the group's skills.", "category": "hackathon",
+             "deadline": d, "image_id": 0 if i == 0 else None,
+             "image_caption": "Students at a hackathon" if i == 0 else None}
+            for i in range(4)]}
     bad_json = 0
     for attempt in range(max_retries):
         try:

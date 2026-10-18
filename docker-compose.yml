@@ -12,17 +12,37 @@ services:
     depends_on: [redis, qdrant]
     restart: unless-stopped
 
+  # Document ingestion (default queue)
   worker:
-    image: rag-ingest:latest          # same image as api, so it's built once
-    command: celery -A app.worker.celery_app.celery worker --loglevel=info --concurrency=2
+    image: rag-ingest:latest
+    command: celery -A app.worker.celery_app.celery worker --loglevel=info --concurrency=2 -Q celery
     env_file: .env
     environment: *env
     volumes: [uploads:/data/uploads]
     depends_on: [api, redis, qdrant]
     restart: unless-stopped
 
+  # Weekly opportunity digest jobs (separate queue so they never block uploads)
+  digest-worker:
+    image: rag-ingest:latest
+    command: celery -A app.worker.celery_app.celery worker --loglevel=info --concurrency=2 -Q digest -n digest@%h
+    env_file: .env
+    environment: *env
+    depends_on: [api, redis]
+    restart: unless-stopped
+
+  # The cron. Run exactly ONE beat instance; never scale this service.
+  beat:
+    image: rag-ingest:latest
+    command: celery -A app.worker.celery_app.celery beat --loglevel=info --schedule /tmp/celerybeat-schedule
+    env_file: .env
+    environment: *env
+    depends_on: [api, redis]
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
+    command: redis-server --appendonly yes
     volumes: [redisdata:/data]
     restart: unless-stopped
 
