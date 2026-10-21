@@ -1,0 +1,15 @@
+# HTTPS reverse proxy (documentation Part G, 36.3).
+# Replace ai.example.com with your domain. Its DNS record must point at this server
+# before Caddy starts, so it can obtain the certificate.
+ai.example.com {
+	request_body {
+		max_size 60MB
+	}
+
+	# Restricting callers: accept only the Zigex backend's public IP.
+	# Uncomment and put the real address in.
+	# @blocked not remote_ip 203.0.113.10
+	# respond @blocked 403
+
+	reverse_proxy api:8000
+}

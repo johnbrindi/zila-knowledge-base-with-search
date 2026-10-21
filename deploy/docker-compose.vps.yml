@@ -1,0 +1,11 @@
+# Shared VPS override: the host's nginx already owns ports 80/443 and terminates HTTPS,
+# so Caddy is disabled and the API is published on localhost only for nginx to proxy.
+# Usage (or set COMPOSE_FILE in .env):
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml -f deploy/docker-compose.vps.yml up -d --build
+
+services:
+  api:
+    ports: !override ["127.0.0.1:8010:8000"]
+
+  caddy:
+    profiles: ["caddy"]               # never started unless explicitly requested

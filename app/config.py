@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     digest_fetch_page_images: bool = True      # read each opportunity's own page image (Open Graph)
     digest_fetch_user_agent: str = "ZigexDigestBot/1.0 (link preview)"
     mock_mode: bool = False                    # fake Tavily / LLM / page images for testing
+    enable_docs: bool = True                   # False hides Swagger (/docs, /openapi.json) in production
 
 
 settings = Settings()

@@ -68,3 +68,15 @@ def test_digest_preview_with_mocked_providers(monkeypatch):
     body = r.json()
     assert body["status"] == "ok" and len(body["items"]) == 3
     assert body["segment_id"] == "preview__ml__bamenda"
+
+
+def test_docs_can_be_hidden(monkeypatch):
+    import importlib
+    import app.main as main
+    monkeypatch.setattr(settings, "enable_docs", False)
+    hidden = TestClient(importlib.reload(main).app)
+    assert hidden.get("/docs").status_code == 404
+    assert hidden.get("/openapi.json").status_code == 404
+    assert hidden.get("/health").json() == {"ok": True}
+    monkeypatch.setattr(settings, "enable_docs", True)
+    importlib.reload(main)

@@ -24,7 +24,10 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Zigex Internship RAG + Opportunity Digest", lifespan=lifespan)
+app = FastAPI(title="Zigex Internship RAG + Opportunity Digest", lifespan=lifespan,
+              docs_url="/docs" if settings.enable_docs else None,
+              redoc_url=None,
+              openapi_url="/openapi.json" if settings.enable_docs else None)
 app.include_router(documents.router)
 app.include_router(search.router)
 app.include_router(digests.router)

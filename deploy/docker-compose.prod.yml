@@ -1,0 +1,50 @@
+# Production override (documentation Part G, 36.3).
+# Usage: docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --build
+# Needs Docker Compose 2.24+ for the !reset tag.
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+services:
+  api:
+    <<: *logging
+    ports: !reset []
+    mem_limit: 1g
+
+  worker:
+    <<: *logging
+    mem_limit: 1g
+
+  digest-worker:
+    <<: *logging
+    mem_limit: 1g
+
+  beat:
+    <<: *logging
+    mem_limit: 256m
+
+  redis:
+    <<: *logging
+
+  qdrant:
+    <<: *logging
+    ports: !reset []
+
+  caddy:
+    <<: *logging
+    image: caddy:2-alpine
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on: [api]
+    restart: unless-stopped
+
+volumes:
+  caddydata:
+  caddyconfig:
